@@ -18,7 +18,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "")
 CYCLE_SECONDS = int(os.getenv("CYCLE_SECONDS", "300"))   # 5 min cycles
 DESK_LABEL = os.getenv("DESK_LABEL", "VELDRIN")
-LEDGER_PATH = Path(os.getenv("LEDGER_PATH", str(ROOT / "veldrin.db")))
+LEDGER_PATH = Path(os.getenv("LEDGER_PATH", "/tmp/veldrin.db"))
 
 # Self-check thresholds
 DATA_FRESHNESS_MAX_S = 300
