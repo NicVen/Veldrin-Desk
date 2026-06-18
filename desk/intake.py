@@ -85,7 +85,7 @@ class VeldrinFeed:
 
     def refresh(self) -> dict[str, PairQuote]:
         """Full refresh of all pairs. Cached for 15 min to respect rate limits."""
-        if time.time() - self._last_refresh < 900 and self._cache:
+        if time.time() - self._last_refresh < 2100 and self._cache:  # 35 min = ~738 req/day
             return self._cache
         for pair in config.PAIRS:
             try:
