@@ -61,6 +61,7 @@ def main():
             state["day_start_equity"] = state["equity"]
             state["pair_day_count"] = {}
             state["total_day_count"] = 0
+            state["api_cap_notified"] = False   # new day, new credits
 
         heartbeats = {"intake": False, "signal": False,
                       "gates": False, "ledger": False}
@@ -69,6 +70,17 @@ def main():
             quotes = feed.refresh()
             heartbeats["intake"] = True
         except Exception as e:
+            reason = str(e)
+            if "run out of API credits for the day" in reason:
+                if not state.get("api_cap_notified"):
+                    dispatch.send("VELDRIN [%s]\nAPI daily credit cap reached. "
+                                  "Desk sleeping until midnight UTC. "
+                                  "No further alerts until then."
+                                  % config.DESK_LABEL)
+                    state["api_cap_notified"] = True
+                    ledger.log_fault(conn, reason, True, now)
+                time.sleep(max(0.0, config.CYCLE_SECONDS - (time.monotonic() - started)))
+                continue
             reason = "Intake failed: %r" % e
             ok = dispatch.send_fault(reason)
             ledger.log_fault(conn, reason, ok, now)
