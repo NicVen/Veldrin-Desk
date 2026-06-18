@@ -1,0 +1,4 @@
+httpx
+truststore
+python-dotenv
+tzdata
