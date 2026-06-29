@@ -58,26 +58,26 @@ class VeldrinFeed:
 
     def _fetch_pair(self, pair: str) -> PairQuote:
         td_symbol = pair[:3] + "/" + pair[3:]
-        price_data = self._get("price", symbol=td_symbol)
-        mid = float(price_data["price"])
-        # synthesize spread from pair limits
-        max_spread = config.MAX_SPREAD_PIPS.get(pair, 3.0)
-        spread_price = (max_spread * 0.6) / self._pip_mult(pair)
-        bid = round(mid - spread_price / 2, 5)
-        ask = round(mid + spread_price / 2, 5)
-        spread_pips = round((ask - bid) * self._pip_mult(pair), 1)
 
-        # 1H history
+        # 1H history (last close also serves as current price — saves 1 req/pair)
         s1h = self._get("time_series", symbol=td_symbol,
                         interval="1h", outputsize=100)
         closes_1h = [float(v["close"]) for v in reversed(s1h.get("values", []))]
-        time.sleep(10)   # 3 req per pair, 6 pairs = 18 req; pace to stay under 8/min
+        time.sleep(10)   # 2 req per pair, 6 pairs = 12 req; pace to stay under 8/min
 
         # 4H history
         s4h = self._get("time_series", symbol=td_symbol,
                         interval="4h", outputsize=50)
         closes_4h = [float(v["close"]) for v in reversed(s4h.get("values", []))]
         time.sleep(10)
+
+        mid = closes_1h[-1] if closes_1h else 0.0
+        # synthesize spread from pair limits
+        max_spread = config.MAX_SPREAD_PIPS.get(pair, 3.0)
+        spread_price = (max_spread * 0.6) / self._pip_mult(pair)
+        bid = round(mid - spread_price / 2, 5)
+        ask = round(mid + spread_price / 2, 5)
+        spread_pips = round((ask - bid) * self._pip_mult(pair), 1)
 
         return PairQuote(pair=pair, bid=bid, ask=ask, spread_pips=spread_pips,
                          ts=datetime.now(config.NZT),
