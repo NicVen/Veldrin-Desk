@@ -47,6 +47,7 @@ class ForexSignal:
         tp2_pips = round(abs(self.tp2   - self.entry) * pm, 1)
         tp3_pips = round(abs(self.tp3   - self.entry) * pm, 1)
         return ("VELDRIN SIGNAL\n"
+                "Style: %s\n" % config.STYLE +
                 "Pair: %s\n"
                 "Direction: %s\n"
                 "Entry: %s\n"
