@@ -73,10 +73,8 @@ def main():
             reason = str(e)
             if "run out of API credits for the day" in reason:
                 if not state.get("api_cap_notified"):
-                    dispatch.send("VELDRIN [%s]\nAPI daily credit cap reached. "
-                                  "Desk sleeping until midnight UTC. "
-                                  "No further alerts until then."
-                                  % config.DESK_LABEL)
+                    print("[VELDRIN:ops] API daily credit cap reached; sleeping until "
+                          "midnight UTC.")   # log only, not the public channel
                     state["api_cap_notified"] = True
                     ledger.log_fault(conn, reason, True, now)
                 time.sleep(max(0.0, config.CYCLE_SECONDS - (time.monotonic() - started)))
@@ -130,7 +128,7 @@ def main():
                 continue
 
             msg = sig.message(decision.lots, quote.age_seconds(now))
-            sent = dispatch.send(msg + "\n\n" + report.text())
+            sent = dispatch.send(msg)   # clean signal only; self-check stays in the ledger
             ledger.log_signal(conn, sig, decision.lots, report, dispatched=sent)
 
             if sent:

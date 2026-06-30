@@ -26,5 +26,6 @@ def send(text: str) -> bool:
 
 
 def send_fault(reason: str) -> bool:
-    return send("VELDRIN FAULT [RAILWAY]\n%s\nNo signal this cycle. "
-                "Desk continues monitoring." % reason)
+    # Faults are operational noise — log to Railway only, never the public channel.
+    print("[VELDRIN:fault] %s" % reason)
+    return True
