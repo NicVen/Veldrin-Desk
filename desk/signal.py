@@ -56,7 +56,7 @@ class ForexSignal:
                 "TP1: %s (%.1f pips) → close 50%%\n"
                 "TP2: %s (%.1f pips) → tighten trail\n"
                 "TP3: %s (%.1f pips) → lock hard, run free\n"
-                "Size: %.2f lots (1%% risk, fixed)\n"
+                "Risk: your call — size to your OWN risk tolerance\n"
                 "1H bias: %s | 4H bias: %s\n"
                 "Time: %s NZT\n"
                 "Data freshness: %.0fs - PASS"
@@ -65,7 +65,6 @@ class ForexSignal:
                    self.tp1, tp1_pips,
                    self.tp2, tp2_pips,
                    self.tp3, tp3_pips,
-                   lots,
                    self.tf_1h, self.tf_4h,
                    self.ts.strftime("%Y-%m-%d %H:%M:%S"),
                    freshness_s))
