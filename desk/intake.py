@@ -1,20 +1,29 @@
 # Copyright (c) 2026. All rights reserved. Proprietary - no license granted.
-"""VELDRIN market data intake via Twelve Data.
+"""VELDRIN market data intake via Yahoo's chart API.
 
-Fetches 1H and 4H history per pair for dual-timeframe confirmation.
-Rate budget: 8 req/min free tier. 6 pairs x 2 timeframes = 12 req per full
-refresh. Full refresh capped at every 15 min; cycle uses cached data otherwise.
+FREE, no API key, no daily credit cap -> the desk runs 24h and produces
+signals as they form (replaces Twelve Data, which capped at 800/day and
+put the desk to sleep mid-session).
+
+Fetches hourly history per pair and resamples to 4H (Yahoo has no native
+4H interval) so the dual-timeframe (1H + 4H) confirmation rule is intact.
+Windows SSL handled by truststore (OS cert store).
 """
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
-import truststore
-truststore.inject_into_ssl()
-
-import httpx
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except Exception:
+    pass
+import requests
 
 from . import config
+
+_HDR = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=3mo&interval=60m"
 
 
 @dataclass
@@ -36,43 +45,44 @@ class PairQuote:
         return (self.bid + self.ask) / 2
 
 
+def _yahoo_symbol(pair: str) -> str:
+    return pair[:3] + pair[3:] + "=X"      # EURUSD -> EURUSD=X
+
+
+def _resample_4h(closes_1h: list[float]) -> list[float]:
+    """Group hourly closes into 4-bar buckets; take each bucket's last close."""
+    out = []
+    for i in range(0, len(closes_1h), 4):
+        bucket = closes_1h[i:i + 4]
+        if bucket:
+            out.append(bucket[-1])
+    return out
+
+
 class VeldrinFeed:
 
     def __init__(self):
-        if not config.TWELVEDATA_API_KEY:
-            raise RuntimeError("TWELVEDATA_API_KEY missing.")
-        self.client = httpx.Client(timeout=20)
+        self.session = requests.Session()
+        self.session.headers.update(_HDR)
         self._cache: dict[str, PairQuote] = {}
         self._last_refresh = 0.0
-
-    def _get(self, endpoint: str, **params):
-        params["apikey"] = config.TWELVEDATA_API_KEY
-        r = self.client.get("https://api.twelvedata.com/" + endpoint, params=params)
-        data = r.json()
-        if isinstance(data, dict) and data.get("status") == "error":
-            raise RuntimeError("TwelveData: %s" % data.get("message"))
-        return data
 
     def _pip_mult(self, pair: str) -> float:
         return 100.0 if "JPY" in pair else 10000.0
 
     def _fetch_pair(self, pair: str) -> PairQuote:
-        td_symbol = pair[:3] + "/" + pair[3:]
+        sym = _yahoo_symbol(pair)
+        r = self.session.get(_URL.format(sym=sym), timeout=20)
+        j = r.json()
+        res = j["chart"]["result"][0]
+        q = res["indicators"]["quote"][0]
+        closes_1h = [c for c in q["close"] if c is not None]
+        if len(closes_1h) < 60:
+            raise RuntimeError("Yahoo returned insufficient 1h data (%d)" % len(closes_1h))
 
-        # 1H history (last close also serves as current price — saves 1 req/pair)
-        s1h = self._get("time_series", symbol=td_symbol,
-                        interval="1h", outputsize=100)
-        closes_1h = [float(v["close"]) for v in reversed(s1h.get("values", []))]
-        time.sleep(10)   # 2 req per pair, 6 pairs = 12 req; pace to stay under 8/min
+        closes_4h = _resample_4h(closes_1h)
 
-        # 4H history
-        s4h = self._get("time_series", symbol=td_symbol,
-                        interval="4h", outputsize=50)
-        closes_4h = [float(v["close"]) for v in reversed(s4h.get("values", []))]
-        time.sleep(10)
-
-        mid = closes_1h[-1] if closes_1h else 0.0
-        # synthesize spread from pair limits
+        mid = closes_1h[-1]
         max_spread = config.MAX_SPREAD_PIPS.get(pair, 3.0)
         spread_price = (max_spread * 0.6) / self._pip_mult(pair)
         bid = round(mid - spread_price / 2, 5)
@@ -84,8 +94,8 @@ class VeldrinFeed:
                          closes_1h=closes_1h, closes_4h=closes_4h)
 
     def refresh(self) -> dict[str, PairQuote]:
-        """Full refresh of all pairs. Cached for 15 min to respect rate limits."""
-        if time.time() - self._last_refresh < 2400 and self._cache:  # 40 min = ~648 req/day
+        """Full refresh of all pairs. Yahoo is free + uncapped; cache ~5 min to be polite."""
+        if time.time() - self._last_refresh < 300 and self._cache:
             return self._cache
         for pair in config.PAIRS:
             try:
