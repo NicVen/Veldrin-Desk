@@ -58,16 +58,14 @@ class ForexSignal:
                 "TP3: %s (%.1f pips) → lock hard, run free\n"
                 "Risk: your call — size to your OWN risk tolerance\n"
                 "1H bias: %s | 4H bias: %s\n"
-                "Time: %s NZT\n"
-                "Data freshness: %.0fs - PASS"
+                "Time: %s NZT"
                 % (self.pair, self.direction,
                    self.entry, self.sl, sl_pips,
                    self.tp1, tp1_pips,
                    self.tp2, tp2_pips,
                    self.tp3, tp3_pips,
                    self.tf_1h, self.tf_4h,
-                   self.ts.strftime("%Y-%m-%d %H:%M:%S"),
-                   freshness_s))
+                   self.ts.strftime("%Y-%m-%d %H:%M:%S")))
 
 
 def _atr(closes: list[float]) -> float:
