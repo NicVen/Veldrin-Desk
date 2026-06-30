@@ -44,15 +44,13 @@ def main():
         # Weekend / market closed handling
         if _market_closed(now):
             if not state["market_closed_notified"]:
-                dispatch.send("VELDRIN [RAILWAY]\nMarket closed (weekend). "
-                              "Desk monitoring. Next open: Sun ~22:00 UTC.")
+                print("[VELDRIN:ops] market closed (weekend); monitoring.")
                 state["market_closed_notified"] = True
             time.sleep(1800)
             continue
         else:
             if state["market_closed_notified"]:
-                dispatch.send("VELDRIN [RAILWAY]\nMarket open. "
-                              "Scanning %d pairs." % len(config.PAIRS))
+                print("[VELDRIN:ops] market open; scanning %d pairs." % len(config.PAIRS))
             state["market_closed_notified"] = False
 
         # NZT day rollover
