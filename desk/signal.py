@@ -15,7 +15,9 @@ from . import config
 
 ATR_LOOKBACK = 14
 SL_ATR = 1.5
-TP_ATR = 3.0    # minimum 1:2 RR enforced here via TP_ATR/SL_ATR ratio
+TP1_R  = 1.0    # partial close level (1R — close 50%)
+TP2_R  = 2.0    # tighten trail level (2R)
+TP3_R  = 3.0    # lock-hard trail level (3R — remainder runs free)
 
 
 @dataclass
@@ -24,7 +26,9 @@ class ForexSignal:
     direction: str       # LONG / SHORT
     entry: float
     sl: float
-    tp: float
+    tp1: float           # 1R — close 50% here
+    tp2: float           # 2R — tighten trail
+    tp3: float           # 3R — lock hard, remainder runs unlimited
     ts: datetime
     tf_1h: str           # 1H bias
     tf_4h: str           # 4H bias
@@ -37,23 +41,30 @@ class ForexSignal:
         return 100.0 if "JPY" in self.pair else 10000.0
 
     def message(self, lots: float, freshness_s: float) -> str:
-        sl_pips = round(abs(self.entry - self.sl) * self.pip_mult(), 1)
-        tp_pips = round(abs(self.tp - self.entry) * self.pip_mult(), 1)
-        rr = round(tp_pips / sl_pips, 2) if sl_pips > 0 else 0
-        return ("VELDRIN SIGNAL [RAILWAY]\n"
+        pm = self.pip_mult()
+        sl_pips  = round(abs(self.entry - self.sl)  * pm, 1)
+        tp1_pips = round(abs(self.tp1   - self.entry) * pm, 1)
+        tp2_pips = round(abs(self.tp2   - self.entry) * pm, 1)
+        tp3_pips = round(abs(self.tp3   - self.entry) * pm, 1)
+        return ("VELDRIN SIGNAL\n"
                 "Pair: %s\n"
                 "Direction: %s\n"
                 "Entry: %s\n"
                 "SL: %s (%.1f pips)\n"
-                "TP: %s (%.1f pips)\n"
-                "R:R 1:%.2f\n"
+                "── RUNNER LEVELS ──\n"
+                "TP1: %s (%.1f pips) → close 50%%\n"
+                "TP2: %s (%.1f pips) → tighten trail\n"
+                "TP3: %s (%.1f pips) → lock hard, run free\n"
                 "Size: %.2f lots (1%% risk, fixed)\n"
                 "1H bias: %s | 4H bias: %s\n"
                 "Time: %s NZT\n"
                 "Data freshness: %.0fs - PASS"
                 % (self.pair, self.direction,
                    self.entry, self.sl, sl_pips,
-                   self.tp, tp_pips, rr, lots,
+                   self.tp1, tp1_pips,
+                   self.tp2, tp2_pips,
+                   self.tp3, tp3_pips,
+                   lots,
                    self.tf_1h, self.tf_4h,
                    self.ts.strftime("%Y-%m-%d %H:%M:%S"),
                    freshness_s))
@@ -93,13 +104,25 @@ def generate(quote: PairQuote) -> ForexSignal | None:
     if atr <= 0:
         return None
 
-    if bias_1h == "LONG":
-        entry, sl, tp = quote.ask, quote.ask - SL_ATR * atr, quote.ask + TP_ATR * atr
-    else:
-        entry, sl, tp = quote.bid, quote.bid + SL_ATR * atr, quote.bid - TP_ATR * atr
-
     dp = 3 if "JPY" in quote.pair else 5
+
+    if bias_1h == "LONG":
+        entry = quote.ask
+        sl    = entry - SL_ATR * atr
+        risk  = entry - sl
+        tp1   = round(entry + risk * TP1_R, dp)
+        tp2   = round(entry + risk * TP2_R, dp)
+        tp3   = round(entry + risk * TP3_R, dp)
+    else:
+        entry = quote.bid
+        sl    = entry + SL_ATR * atr
+        risk  = sl - entry
+        tp1   = round(entry - risk * TP1_R, dp)
+        tp2   = round(entry - risk * TP2_R, dp)
+        tp3   = round(entry - risk * TP3_R, dp)
+
     return ForexSignal(pair=quote.pair, direction=bias_1h,
-                       entry=round(entry, dp), sl=round(sl, dp), tp=round(tp, dp),
+                       entry=round(entry, dp), sl=round(sl, dp),
+                       tp1=tp1, tp2=tp2, tp3=tp3,
                        ts=datetime.now(config.NZT),
                        tf_1h=bias_1h, tf_4h=bias_4h, atr=atr)
