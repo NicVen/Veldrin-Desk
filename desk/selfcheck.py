@@ -91,7 +91,7 @@ def run(sig: ForexSignal, quote: PairQuote,
 
     # 6. RR check (min 1:2)
     risk = abs(sig.entry - sig.sl)
-    reward = abs(sig.tp - sig.entry)
+    reward = abs(sig.tp3 - sig.entry)   # RR gate uses the full runner target (TP3); TP1/TP2 are partial/trail levels
     rr = reward / risk if risk > 0 else 0.0
     rep.results.append(CheckResult("rr_ratio", rr >= config.MIN_RR,
                        "RR %.2f (min %.1f)" % (rr, config.MIN_RR)))

@@ -34,14 +34,14 @@ def connect(path=None):
 
 def log_signal(conn, sig, lots, report, dispatched) -> int:
     risk = abs(sig.entry - sig.sl)
-    reward = abs(sig.tp - sig.entry)
+    reward = abs(sig.tp3 - sig.entry)   # RR measured to full runner target
     rr = round(reward / risk, 2) if risk > 0 else 0
     cur = conn.execute(
         "INSERT INTO signals (ts,pair,direction,entry,sl,tp,lots,rr,"
         "tf_1h,tf_4h,selfcheck_passed,selfcheck_report,dispatched) "
         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (sig.ts.isoformat(), sig.pair, sig.direction, sig.entry, sig.sl,
-         sig.tp, lots, rr, sig.tf_1h, sig.tf_4h,
+         sig.tp3, lots, rr, sig.tf_1h, sig.tf_4h,
          int(report.passed), report.text(), int(dispatched)))
     conn.commit()
     return cur.lastrowid
