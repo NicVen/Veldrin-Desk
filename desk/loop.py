@@ -9,7 +9,7 @@ fire before any signal reaches Telegram.
 import time
 from datetime import datetime, timezone
 
-from . import config, dispatch, gates, ledger, selfcheck
+from . import config, dispatch, gates, ledger, selfcheck, manage
 from . import signal as signal_mod
 from .intake import VeldrinFeed
 
@@ -126,15 +126,22 @@ def main():
                 continue
 
             msg = sig.message(decision.lots, quote.age_seconds(now))
-            sent = dispatch.send(msg)   # clean signal only; self-check stays in the ledger
+            sent = dispatch.send_vip(msg)       # full signal -> paid VIP channel
+            dispatch.send_public(sig.teaser())  # direction-only teaser -> free channel
             ledger.log_signal(conn, sig, decision.lots, report, dispatched=sent)
 
             if sent:
+                manage.open_trade(sig)          # start VIP trade-management tracking
                 state["recent_keys"][sig.key()] = now
                 state["open_positions"][pair] = sig.direction
                 state["pair_day_count"][pair] = \
                     state["pair_day_count"].get(pair, 0) + 1
                 state["total_day_count"] += 1
+
+        # VIP trade management: watch open trades vs live price, alert on TP/SL/BE
+        prices = {p: q.mid for p, q in quotes.items()}
+        for alert in manage.check(prices):
+            dispatch.send_vip(alert)
 
         time.sleep(max(0.0, config.CYCLE_SECONDS - (time.monotonic() - started)))
 

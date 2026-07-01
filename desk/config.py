@@ -14,7 +14,11 @@ NZT = ZoneInfo("Pacific/Auckland")
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF"]
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+# VIP = full signals + management alerts (paid, private). PUBLIC = free teasers.
+# Back-compat: if VIP_CHAT_ID unset, fall back to TELEGRAM_CHAT_ID.
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+VIP_CHAT_ID    = os.getenv("VIP_CHAT_ID", TELEGRAM_CHAT_ID)
+PUBLIC_CHAT_ID = os.getenv("PUBLIC_CHAT_ID", "")   # empty = no free teasers posted
 TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY", "")
 CYCLE_SECONDS = int(os.getenv("CYCLE_SECONDS", "300"))   # 5 min cycles
 DESK_LABEL = os.getenv("DESK_LABEL", "VELDRIN")

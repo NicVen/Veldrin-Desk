@@ -37,6 +37,16 @@ class ForexSignal:
     def key(self) -> str:
         return "%s:%s" % (self.pair, self.direction)
 
+    def teaser(self) -> str:
+        """Free-channel preview: direction only, no tradeable levels."""
+        return ("VELDRIN SIGNAL — free preview\n"
+                "Style: %s\n"
+                "Pair: %s\n"
+                "Direction: %s\n"
+                "Entry, SL, TP + live trade management → VIP members only 🔒\n"
+                "Not financial advice. Trade your own plan."
+                % (config.STYLE, self.pair, self.direction))
+
     def pip_mult(self) -> float:
         return 100.0 if "JPY" in self.pair else 10000.0
 
