@@ -1,1 +1,1 @@
-worker: python -m desk.loop
+worker: python -m desk.serve
