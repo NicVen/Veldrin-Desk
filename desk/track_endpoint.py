@@ -17,17 +17,22 @@ from . import config
 
 def _payload() -> dict:
     conn = sqlite3.connect("file:%s?mode=ro" % config.LEDGER_PATH, uri=True)
+    rows = []
     try:
-        n = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
-        rows = [{"result": r[0], "pnl_usd": r[1], "equity_after": r[2]}
-                for r in conn.execute(
-                    "SELECT o.result, o.pnl_usd, o.equity_after "
-                    "FROM outcomes o JOIN signals s ON s.id = o.signal_id "
-                    "ORDER BY o.closed_ts ASC")]
+        try:
+            n = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        except Exception:
+            n = 0
+        try:
+            for r in conn.execute("SELECT result, pips FROM closed_trades ORDER BY ts ASC"):
+                rows.append({"result": r[0], "pnl_usd": r[1],
+                             "pips": r[1], "equity_after": None})
+        except Exception:
+            pass
     finally:
         conn.close()
     return {"product": "VELDRIN FX", "pair": getattr(config, "PAIR", "FX"),
-            "signals": n, "outcomes": rows}
+            "unit": "pips", "signals": n, "outcomes": rows}
 
 
 class _H(BaseHTTPRequestHandler):
