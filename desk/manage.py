@@ -48,15 +48,19 @@ def check(price_by_pair: dict) -> list[str]:
         longd = direction in ("LONG", "BUY")
         reached = (lambda lvl: px >= lvl) if longd else (lambda lvl: px <= lvl)
         sl_hit = (px <= sl) if longd else (px >= sl)
+        pip = 0.01 if pair.endswith("JPY") else 0.0001
+        pips = lambda lvl: round(abs(lvl - entry) / pip, 1)
 
         if sl_hit:
             alerts.append(_alert(pair, direction,
-                "SL hit — trade closed. Capital protected, on to the next."))
+                "SL hit — trade closed (-%.1f pips). Capital protected, on to the next."
+                % pips(sl)))
             c.execute("DELETE FROM open_trades WHERE pair=?", (pair,))
             continue
         if reached(tp3):
             alerts.append(_alert(pair, direction,
-                "TP3 hit 🎯 — close the runner. Trade DONE. Full 1:3+ banked."))
+                "TP3 hit 🎯 — close the runner (+%.1f pips). Trade DONE. Full 1:3+ banked."
+                % pips(tp3)))
             c.execute("DELETE FROM open_trades WHERE pair=?", (pair,))
             continue
         if not hit2 and reached(tp2):
