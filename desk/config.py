@@ -24,6 +24,12 @@ CYCLE_SECONDS = int(os.getenv("CYCLE_SECONDS", "300"))   # 5 min cycles
 DESK_LABEL = os.getenv("DESK_LABEL", "VELDRIN")
 STYLE = os.getenv("STYLE", "Intraday")   # trade horizon shown on signals (1H+4H confirmation)
 LEDGER_PATH = Path(os.getenv("LEDGER_PATH", "/tmp/veldrin.db"))
+# PAUSED=true: no new signals (open trades are still managed to their close).
+# Set 2026-10-04: the rule lost in testing and no alternative passed yet.
+PAUSED = os.getenv("PAUSED", "false").lower() == "true"
+PAUSE_NOTE = ("VELDRIN update: new signals are paused while we rebuild the strategy. "
+              "Signals return only once a rule passes its track-record test. "
+              "Any open trade is still managed here until it closes.")
 
 # Self-check thresholds
 DATA_FRESHNESS_MAX_S = 300

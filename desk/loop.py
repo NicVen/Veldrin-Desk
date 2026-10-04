@@ -19,6 +19,20 @@ def _market_closed(now: datetime) -> bool:
     return wd == 5 or (wd == 6 and now.astimezone(timezone.utc).hour < 22)
 
 
+def _announce_pause(conn) -> None:
+    """Tell the channel once when signals pause; forget it again on resume."""
+    conn.execute("CREATE TABLE IF NOT EXISTS desk_notes(key TEXT PRIMARY KEY, ts TEXT)")
+    told = conn.execute("SELECT 1 FROM desk_notes WHERE key='paused'").fetchone()
+    if config.PAUSED and not told:
+        if dispatch.send_vip(config.PAUSE_NOTE):
+            conn.execute("INSERT INTO desk_notes VALUES('paused', ?)",
+                         (datetime.now(config.NZT).isoformat(),))
+    elif not config.PAUSED and told:
+        conn.execute("DELETE FROM desk_notes WHERE key='paused'")
+    conn.commit()
+    print("VELDRIN signals: %s" % ("PAUSED" if config.PAUSED else "on"))
+
+
 def main():
     print("VELDRIN desk starting. Pairs: %s. Cycle: %ds. All times NZT."
           % (", ".join(config.PAIRS), config.CYCLE_SECONDS))
@@ -36,6 +50,8 @@ def main():
         "day": datetime.now(config.NZT).date(),
         "market_closed_notified": False,
     }
+
+    _announce_pause(conn)
 
     while True:
         started = time.monotonic()
@@ -84,6 +100,8 @@ def main():
             continue
 
         for pair, quote in quotes.items():
+            if config.PAUSED:
+                break                   # no new signals; trade management below
             try:
                 sig = signal_mod.generate(quote)
                 heartbeats["signal"] = True
